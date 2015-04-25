@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="bower_components/spectrum/spectrum.css"/>
+        <style>
+            aside, article {
+                float: left;
+            }
+            #referenceColor, #sampleColor {
+                width: 100%;
+                height: 150px
+            }
+
+        </style>
+    </head>
+    <body>
+        <aside>
+            <input id="reference" /> <br/>
+            <input id="sample" />
+        </aside>
+        <article>
+            <h1>Delta E color difference</h1>
+            <p>
+                <h2>Delta E value: <a>n/a</a></h2>
+                <div id="referenceColor"></div>
+                <div id="sampleColor"></div>
+            </p>
+            <p>
+                References and articles:
+                <ul>
+                    <li>http://html5hub.com/exploring-color-matching-in-javascript/</li>
+                    <li>http://www.brucelindbloom.com/</li>
+                    <li>http://en.wikipedia.org/wiki/Color_difference</li>
+                    <li>https://github.com/gtaylor/python-colormath</li>
+                </ul>
+            </p>
+        </article>
+    </body>
+    <script src="bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="bower_components/spectrum/spectrum.js"></script>
+    <script src="bower_components/delta-e/dist/deltae.global.min.js"></script>
+    <script src="deltae.js"></script>
+    <script>
+        var $deltaValue = $('article h2 a'),
+            $referenceColorPreview = $('article #referenceColor'),
+            $sampleColorPreview = $('article #sampleColor')
+            ;
+
+        var checkScore = function(reference, sample) {
+            var tinyColorToLab = function(tinyColor) {
+                var sample = tinyColor.toHsl();
+                var rgb = hslToRgb(sample.h/360, sample.s/100, sample.l/100);
+                var xyz = rgbToXyz(rgb[0], rgb[1], rgb[2]);
+                var lab = xyzToLab(xyz[0], xyz[1], xyz[2]);
+                return lab;
+            }
+            reference = tinyColorToLab(reference);
+            sample = tinyColorToLab(sample);
+            var diff = cie1994(sample, reference, false);
+            return diff;
+        };
+        var update = function() {
+            var reference = $('#reference').spectrum('get'),
+                sample = $('#sample').spectrum('get'),
+                result = checkScore(reference, sample)
+            ;
+            $referenceColorPreview.css({backgroundColor: reference.toHexString()});
+            $sampleColorPreview.css({backgroundColor: sample.toHexString()});
+            $deltaValue.text(result);
+        }
+
+        $("input").spectrum({
+            color: "#f00",
+            flat: true,
+            showInput: true,
+            allowEmpty: false,
+            showButtons: false,
+            move: update
+        });
+        update();
+
+    </script>
+</html>
