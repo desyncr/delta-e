@@ -1,110 +1,101 @@
-/* To score color accuracy properly we need to convert HSL to LAB and then get Delta-E by using CIE94 formula */
-/* To do this we need to convert HSL to RGB to XYZ to LAB, then run CIE94 formula */
- 
-// Convert HSL to RGB
-function hslToRgb(h, s, l){
-    var r, g, b;
- 
-    if (s == 0){
-        r = g = b = l;
-    }
-    else{
-        function hue2rgb(p, q, t){
-            if (t < 0) t += 1;
-            if (t > 1) t -= 1;
-            if (t < 1/6) return p + (q - p) * 6 * t;
-            if (t < 1/2) return q;
-            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-            return p;
-        }
- 
-        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        var p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1/3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1/3);
-    }
- 
-    return [r * 255, g * 255, b * 255].map(Math.round);
-};
+/**
+ * @param tinyColor object
+ * @return Object Lab {L: .., A: .., B: ..}
+ */
+function tinyColorToLabObject(tinyColor) {
+    var color = tinyColor.toRgb();
+    var lab = rgbToLab(color.r, color.g, color.b);
+    return {
+        L: lab[0],
+        A: lab[1],
+        B: lab[2]
+    };
+}
+/**
+ * @param tinyColor object
+ * @return Array Lab [L, a, b]
+ */
+function tinyColorToLab(tinyColor) {
+    var color = tinyColor.toRgb();
+    return rgbToLab(color.r, color.g, color.b);
+}
 
-
- 
-// Convert RGB to XYZ
+function rgbToLab(r, g, b) {
+    var xyz = rgbToXyz(r, g, b);
+    return xyzToLab(xyz[0], xyz[1], xyz[2]);
+}
 function rgbToXyz(r, g, b) {
     var _r = (r / 255);
     var _g = (g / 255);
     var _b = (b / 255);
- 
+
     if (_r > 0.04045) {
         _r = Math.pow(((_r + 0.055) / 1.055), 2.4);
     }
     else {
         _r = _r / 12.92;
     }
- 
+
     if (_g > 0.04045) {
         _g = Math.pow(((_g + 0.055) / 1.055), 2.4);
     }
-    else {                 
+    else {
         _g = _g / 12.92;
     }
- 
+
     if (_b > 0.04045) {
         _b = Math.pow(((_b + 0.055) / 1.055), 2.4);
     }
-    else {                  
+    else {
         _b = _b / 12.92;
     }
- 
+
     _r = _r * 100;
     _g = _g * 100;
     _b = _b * 100;
- 
+
     X = _r * 0.4124 + _g * 0.3576 + _b * 0.1805;
     Y = _r * 0.2126 + _g * 0.7152 + _b * 0.0722;
     Z = _r * 0.0193 + _g * 0.1192 + _b * 0.9505;
- 
-    return [X, Y, Z];
-};
 
-// Convert XYZ to LAB
+    return [X, Y, Z];
+}
 function xyzToLab(x, y, z) {
-    var ref_X =  95.047;
+    var ref_X = 95.047;
     var ref_Y = 100.000;
     var ref_Z = 108.883;
- 
+
     var _X = x / ref_X;
     var _Y = y / ref_Y;
     var _Z = z / ref_Z;
- 
+
     if (_X > 0.008856) {
-         _X = Math.pow(_X, (1/3));
-    }
-    else {                 
-        _X = (7.787 * _X) + (16 / 116);
-    }
- 
-    if (_Y > 0.008856) {
-        _Y = Math.pow(_Y, (1/3));
+        _X = Math.pow(_X, (1 / 3));
     }
     else {
-      _Y = (7.787 * _Y) + (16 / 116);
+        _X = (7.787 * _X) + (16 / 116);
     }
- 
+
+    if (_Y > 0.008856) {
+        _Y = Math.pow(_Y, (1 / 3));
+    }
+    else {
+        _Y = (7.787 * _Y) + (16 / 116);
+    }
+
     if (_Z > 0.008856) {
-        _Z = Math.pow(_Z, (1/3));
+        _Z = Math.pow(_Z, (1 / 3));
     }
-    else { 
+    else {
         _Z = (7.787 * _Z) + (16 / 116);
     }
- 
+
     var CIE_L = (116 * _Y) - 16;
     var CIE_a = 500 * (_X - _Y);
     var CIE_b = 200 * (_Y - _Z);
- 
+
     return [CIE_L, CIE_a, CIE_b];
-};
+}
 
 // Finally, use cie1994 to get delta-e using LAB
 function cie1994(x, y, isTextiles) {

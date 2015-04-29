@@ -1,30 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         <link rel="stylesheet" href="bower_components/spectrum/spectrum.css"/>
+        <link rel="stylesheet" href="bower_components/jquery-simple-slider/css/simple-slider.css"/>
         <style>
             aside, article {
                 float: left;
             }
-            #referenceColor, #sampleColor {
-                width: 100%;
-                height: 150px
+            .preview {
+                width: 400px;
+                height: 150px;
+                text-align: center;
+            }
+            .preview a {
+                font-size: 54px;
+                line-height: 150px;
+            }
+            article span {
+                vertical-align: top;
+                display: block;
+                width: 324px;
+                text-align: center;
+            }
+            #threshold {
+                font-size: 50px;
+            }
+
+            .below-threshold {
+                color: red;
+            }
+            .col-md-4 {
+                margin: 10px;
             }
 
         </style>
     </head>
-    <body>
-        <aside>
+    <body class="container">
+        <aside class="spectrum col-md-4">
             <input id="reference" /> <br/>
             <input id="sample" />
         </aside>
-        <article>
-            <h1>Delta E color difference</h1>
+        <article class="col-md-4">
+            <h1>Delta E/percieved color difference</h1>
             <p>
-                <h2>Delta E value: <a>n/a</a></h2>
-                <div id="referenceColor"></div>
-                <div id="sampleColor"></div>
+                <div class="preview" id="referenceColor">
+                    <a>Sample text</a>
+                </div>
+                <div class="preview" id="sampleColor">
+                    <a>Sample text</a>
+                </div>
             </p>
+        </article>
+        <aside class="col-md-4">
+            <h4>Delta E 76 value: <a>n/a</a></h4>
+            <h4>Delta E 94 value: <a>n/a</a></h4>
+            <h4>Delta E 00 value: <a>n/a</a></h4>
+            <h2>Delta E CMC value: <a>n/a</a></h2>
+            <h4>HSL closeness: <a>n/a</a></h4>
+            <span id="threshold" style="vertical-align: top"></span>
+            <input type="text" value="5.000" data-slider="true" data-slider-range="0.0,50.0">
+            <span>Acceptance threshold</span>
             <p>
                 References and articles:
                 <ul>
@@ -34,42 +69,106 @@
                     <li>https://github.com/gtaylor/python-colormath</li>
                 </ul>
             </p>
-        </article>
+        </aside>
     </body>
     <script src="bower_components/jquery/dist/jquery.min.js"></script>
     <script src="bower_components/spectrum/spectrum.js"></script>
     <script src="bower_components/delta-e/dist/deltae.global.min.js"></script>
+    <script src="bower_components/jquery-simple-slider/js/simple-slider.min.js"></script>
+    <script src="cmc.js"></script>
     <script src="deltae.js"></script>
     <script>
-        var $deltaValue = $('article h2 a'),
+        var $labels = $('aside h2 a, aside h4 a'),
+            $deltaE76Value = $labels.eq(0),
+            $deltaE94Value = $labels.eq(1),
+            $deltaE00Value = $labels.eq(2),
+            $deltaECmcValue = $labels.eq(3),
+            $hsvCloseness = $labels.eq(4),
             $referenceColorPreview = $('article #referenceColor'),
-            $sampleColorPreview = $('article #sampleColor')
+            $sampleColorPreview = $('article #sampleColor'),
+            threshold = 0.0
             ;
-
-        var checkScore = function(reference, sample) {
-            var tinyColorToLab = function(tinyColor) {
-                var sample = tinyColor.toHsl();
-                var rgb = hslToRgb(sample.h/360, sample.s/100, sample.l/100);
-                var xyz = rgbToXyz(rgb[0], rgb[1], rgb[2]);
-                var lab = xyzToLab(xyz[0], xyz[1], xyz[2]);
-                return lab;
-            }
-            reference = tinyColorToLab(reference);
-            sample = tinyColorToLab(sample);
-            var diff = cie1994(sample, reference, false);
-            return diff;
+        
+        var deltaE76 = function(reference, sample) {
+            reference = tinyColorToLabObject(reference);
+            sample = tinyColorToLabObject(sample);
+            return DeltaE.getDeltaE76(reference, sample);
         };
+
+        var deltaE94 = function(reference, sample) {
+            reference = tinyColorToLabObject(reference);
+            sample = tinyColorToLabObject(sample);
+            return DeltaE.getDeltaE94(reference, sample);
+        };
+
+        var deltaE00 = function(reference, sample) {
+            reference = tinyColorToLabObject(reference);
+            sample = tinyColorToLabObject(sample);
+            return DeltaE.getDeltaE00(reference, sample);
+        };
+
+        var deltaECmc = function(reference, sample) {
+            var cmc = new cmcComparation;
+            return cmc.compare(reference, sample);  
+        };
+
+        var hsvCloseness = function(reference, sample) {
+            var reference = reference.toHsl(),
+                sample = sample.toHsl()
+                ;
+
+            return Math.abs((reference.h - sample.h) + (0.5 * (reference.l - sample.l)) + ((reference.s - sample.s)));
+        };
+
         var update = function() {
             var reference = $('#reference').spectrum('get'),
                 sample = $('#sample').spectrum('get'),
-                result = checkScore(reference, sample)
+                deltaE76Value = deltaE76(reference, sample),
+                deltaE94Value = deltaE94(reference, sample),
+                deltaE00Value = deltaE00(reference, sample),
+                deltaECmcValue = deltaECmc(reference, sample),
+                hsvClosenessValue = hsvCloseness(reference, sample)
             ;
-            $referenceColorPreview.css({backgroundColor: reference.toHexString()});
-            $sampleColorPreview.css({backgroundColor: sample.toHexString()});
-            $deltaValue.text(result);
+            $referenceColorPreview.css({backgroundColor: reference.toHexString(), color: sample.toHexString()});
+            $sampleColorPreview.css({backgroundColor: sample.toHexString(), color: reference.toHexString()});
+
+            $deltaE76Value.text(deltaE76Value.toFixed(3));
+            if (deltaE76Value < threshold) {
+                $deltaE76Value.addClass('below-threshold');
+            } else {
+                $deltaE76Value.removeClass('below-threshold');
+            }
+
+            $deltaE94Value.text(deltaE94Value.toFixed(3));
+            if (deltaE94Value < threshold) {
+                $deltaE94Value.addClass('below-threshold');
+            } else {
+                $deltaE94Value.removeClass('below-threshold');
+            }
+
+            $deltaE00Value.text(deltaE00Value.toFixed(3));
+            if (deltaE00Value < threshold) {
+                $deltaE00Value.addClass('below-threshold');
+            } else {
+                $deltaE00Value.removeClass('below-threshold');
+            }
+
+            $deltaECmcValue.text(deltaECmcValue.toFixed(3));
+            if (deltaECmcValue < threshold) {
+                $deltaECmcValue.addClass('below-threshold');
+            } else {
+                $deltaECmcValue.removeClass('below-threshold');
+            }
+
+            $hsvCloseness.text(hsvClosenessValue.toFixed(3));
+            if (hsvClosenessValue < threshold) {
+                $hsvCloseness.addClass('below-threshold');
+            } else {
+                $hsvCloseness.removeClass('below-threshold');
+            }
         }
 
-        $("input").spectrum({
+        $(".spectrum input").spectrum({
             color: "#f00",
             flat: true,
             showInput: true,
@@ -77,6 +176,12 @@
             showButtons: false,
             move: update
         });
+        $("[data-slider]")
+          .bind("slider:ready slider:changed", function (event, data) {
+            threshold = data.value.toFixed(3);
+            $(this).prevAll("span").html(threshold);
+            update();
+          });
         update();
 
     </script>

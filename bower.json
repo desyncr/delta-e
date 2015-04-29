@@ -1,0 +1,22 @@
+{
+  "name": "colorDifference",
+  "version": "0.0.0",
+  "authors": [
+    "DC* <dc@syncr.com.ar>"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "~3.3.4",
+    "delta-e": "~0.0.7",
+    "jquery-simple-slider": "~1.0.0",
+    "spectrum": "~1.6.2"
+  }
+}
